@@ -32,16 +32,45 @@
         color: white;
         cursor: pointer;
       }
+
+      textarea {
+        width: 100%;
+        height: 120px;
+        margin-bottom: 16px;
+        padding: 12px;
+        font-size: 14px;
+      }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>Hello, I shipped my first app 🚀</h1>
-      <p class="subtitle">
-        Built by Abhishek, a PM learning to code.
-      </p>
+      <h1>Text Analyzer</h1>
 
-      <button>Celebrate 🎉</button>
+      <textarea id="textInput" placeholder="Paste your text here..."></textarea>
+
+      <button id="analyzeBtn">Analyze</button>
+
+      <p id="result"></p>
     </div>
+    <script>
+      const input = document.getElementById("textInput");
+      const button = document.getElementById("analyzeBtn");
+      const result = document.getElementById("result");
+
+      button.addEventListener("click", () => {
+        const text = input.value.trim();
+
+        if (text === "") {
+          result.textContent = "Please enter some text.";
+          return;
+        }
+
+        const charCount = text.length;
+        const wordCount = text.split(/\s+/).length;
+
+        result.textContent =
+          `Characters: ${charCount} | Words: ${wordCount}`;
+      });
+    </script>
   </body>
 </html>
