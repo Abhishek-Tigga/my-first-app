@@ -72,6 +72,18 @@
 
       <ul id="rates"></ul>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+      const supabaseUrl = "https://qmgghzjcbgybjltqqtrj.supabase.co";
+      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtZ2doempjYmd5YmpsdHFxdHJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MzUwNDYsImV4cCI6MjA4NDQxMTA0Nn0.kPfmwW8Jpu5DY0rDyUYdSyHpIlVAwsij4-UG6dijukM";
+
+      const db = window.supabase.createClient(
+        supabaseUrl,
+        supabaseKey
+      );
+
+      console.log("Supabase connected", db);
+    </script>
     <script>
       const input = document.getElementById("textInput");
       const button = document.getElementById("analyzeBtn");
@@ -81,7 +93,7 @@
       const errorText = document.getElementById("error");
       const ratesList = document.getElementById("rates");
 
-      button.addEventListener("click", () => {
+      button.addEventListener("click", async () => {
         const text = input.value.trim();
 
         if (text === "") {
@@ -91,6 +103,16 @@
 
         const charCount = text.length;
         const wordCount = text.split(/\s+/).length;
+
+        const { error } = await db.from("analyses").insert([{
+          text,
+          word_count: wordCount,
+          char_count: charCount
+        }]);
+
+        if (error) {
+          console.error("Supabase insert failed", error);
+        }
 
         result.textContent =
           `Characters: ${charCount} | Words: ${wordCount}`;
