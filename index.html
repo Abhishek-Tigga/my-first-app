@@ -185,7 +185,40 @@
         homeView.style.display = "none";
         analyzeView.style.display = "none";
         historyView.style.display = "block";
+
+        loadHistory();
       };
+
+      async function loadHistory() {
+        const historyList = document.getElementById("historyList");
+        historyList.innerHTML = "<li>Loading...</li>";
+
+        const { data, error } = await db
+          .from("analyses")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(10);
+
+        if (error) {
+          historyList.innerHTML = "<li>Error loading history</li>";
+          console.error(error);
+          return;
+        }
+
+        if (data.length === 0) {
+          historyList.innerHTML = "<li>No history yet</li>";
+          return;
+        }
+
+        historyList.innerHTML = "";
+
+        data.forEach(row => {
+          const li = document.createElement("li");
+          li.textContent =
+            `${row.text.slice(0, 40)}… | ${row.word_count} words`;
+          historyList.appendChild(li);
+        });
+      }
     </script>
   </body>
 </html>
