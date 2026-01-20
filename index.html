@@ -114,6 +114,18 @@
       const analyzeView = document.getElementById("analyzeView");
       const historyView = document.getElementById("historyView");
 
+      function classifyText(wordCount) {
+        if (wordCount < 10) {
+          return "Too Short";
+        } else if (wordCount < 50) {
+          return "Short";
+        } else if (wordCount < 200) {
+          return "Medium";
+        } else {
+          return "Long";
+        }
+      }
+
       button.addEventListener("click", async () => {
         const text = input.value.trim();
 
@@ -124,11 +136,13 @@
 
         const charCount = text.length;
         const wordCount = text.split(/\s+/).length;
+        const category = classifyText(wordCount);
 
         const { error } = await db.from("analyses").insert([{
           text,
           word_count: wordCount,
-          char_count: charCount
+          char_count: charCount,
+          category
         }]);
 
         if (error) {
@@ -136,7 +150,7 @@
         }
 
         result.textContent =
-          `Characters: ${charCount} | Words: ${wordCount}`;
+          `Characters: ${charCount} | Words: ${wordCount} | Category: ${category}`;
       });
 
       loadBtn.addEventListener("click", async () => {
@@ -215,7 +229,7 @@
         data.forEach(row => {
           const li = document.createElement("li");
           li.textContent =
-            `${row.text.slice(0, 40)}… | ${row.word_count} words`;
+            `${row.text.slice(0, 40)}… | ${row.word_count} words | ${row.category}`;
           historyList.appendChild(li);
         });
       }
