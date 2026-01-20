@@ -53,13 +53,31 @@
   </head>
   <body>
     <div class="container">
-      <h1>Text Analyzer</h1>
+      <nav style="margin-bottom: 24px;">
+        <button id="navHome">Home</button>
+        <button id="navAnalyze">Analyze</button>
+        <button id="navHistory">History</button>
+      </nav>
 
-      <textarea id="textInput" placeholder="Paste your text here..."></textarea>
+      <section id="homeView">
+        <h1>Text Analyzer</h1>
+        <p class="subtitle">
+          Analyze text, calculate stats, and save history.
+        </p>
+      </section>
 
-      <button id="analyzeBtn">Analyze</button>
+      <section id="analyzeView" style="display:none;">
+        <textarea id="textInput" placeholder="Paste your text here..."></textarea>
 
-      <p id="result"></p>
+        <button id="analyzeBtn">Analyze</button>
+
+        <p id="result"></p>
+      </section>
+
+      <section id="historyView" style="display:none;">
+        <h2>History</h2>
+        <ul id="historyList"></ul>
+      </section>
 
       <hr />
 
@@ -92,6 +110,9 @@
       const loadingText = document.getElementById("loading");
       const errorText = document.getElementById("error");
       const ratesList = document.getElementById("rates");
+      const homeView = document.getElementById("homeView");
+      const analyzeView = document.getElementById("analyzeView");
+      const historyView = document.getElementById("historyView");
 
       button.addEventListener("click", async () => {
         const text = input.value.trim();
@@ -147,6 +168,24 @@
           loadingText.style.display = "none";
         }
       });
+
+      document.getElementById("navHome").onclick = () => {
+        homeView.style.display = "block";
+        analyzeView.style.display = "none";
+        historyView.style.display = "none";
+      };
+
+      document.getElementById("navAnalyze").onclick = () => {
+        homeView.style.display = "none";
+        analyzeView.style.display = "block";
+        historyView.style.display = "none";
+      };
+
+      document.getElementById("navHistory").onclick = () => {
+        homeView.style.display = "none";
+        analyzeView.style.display = "none";
+        historyView.style.display = "block";
+      };
     </script>
   </body>
 </html>
