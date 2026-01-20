@@ -113,6 +113,7 @@
       const homeView = document.getElementById("homeView");
       const analyzeView = document.getElementById("analyzeView");
       const historyView = document.getElementById("historyView");
+      let historyIntervalId = null;
 
       function classifyText(wordCount) {
         if (wordCount < 10) {
@@ -123,6 +124,21 @@
           return "Medium";
         } else {
           return "Long";
+        }
+      }
+
+      function startHistoryAutoRefresh() {
+        if (historyIntervalId) {
+          clearInterval(historyIntervalId);
+        }
+        loadHistory();
+        historyIntervalId = setInterval(loadHistory, 5000);
+      }
+
+      function stopHistoryAutoRefresh() {
+        if (historyIntervalId) {
+          clearInterval(historyIntervalId);
+          historyIntervalId = null;
         }
       }
 
@@ -187,12 +203,16 @@
         homeView.style.display = "block";
         analyzeView.style.display = "none";
         historyView.style.display = "none";
+
+        stopHistoryAutoRefresh();
       };
 
       document.getElementById("navAnalyze").onclick = () => {
         homeView.style.display = "none";
         analyzeView.style.display = "block";
         historyView.style.display = "none";
+
+        stopHistoryAutoRefresh();
       };
 
       document.getElementById("navHistory").onclick = () => {
@@ -200,7 +220,7 @@
         analyzeView.style.display = "none";
         historyView.style.display = "block";
 
-        loadHistory();
+        startHistoryAutoRefresh();
       };
 
       async function loadHistory() {
