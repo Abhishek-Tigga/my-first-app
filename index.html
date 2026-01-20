@@ -23,6 +23,33 @@
         margin-bottom: 24px;
       }
 
+      .notification-banner {
+        display: none;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 14px;
+        margin-bottom: 16px;
+        border: 1px solid transparent;
+      }
+
+      .notification-info {
+        background: #f0f7ff;
+        color: #1a3d6b;
+        border-color: #cfe3ff;
+      }
+
+      .notification-warning {
+        background: #fff7e6;
+        color: #7a4a00;
+        border-color: #ffd599;
+      }
+
+      .notification-error {
+        background: #ffecec;
+        color: #7a1f1f;
+        border-color: #ffc1c1;
+      }
+
       button {
         padding: 12px 20px;
         font-size: 16px;
@@ -53,6 +80,9 @@
   </head>
   <body>
     <div class="container">
+      <div id="notificationBanner" class="notification-banner notification-info" style="display:none;">
+        <span>Your message goes here.</span>
+      </div>
       <nav style="margin-bottom: 24px;">
         <button id="navHome">Home</button>
         <button id="navAnalyze">Analyze</button>
@@ -142,6 +172,24 @@
         }
       }
 
+      function showNotification(message, type = "info", duration = 3000) {
+        const banner = document.getElementById("notificationBanner");
+        const messageElement = banner.querySelector("span");
+
+        banner.classList.remove(
+          "notification-info",
+          "notification-warning",
+          "notification-error"
+        );
+        banner.classList.add(`notification-${type}`);
+        messageElement.textContent = message;
+        banner.style.display = "block";
+
+        setTimeout(() => {
+          banner.style.display = "none";
+        }, duration);
+      }
+
       button.addEventListener("click", async () => {
         const text = input.value.trim();
 
@@ -153,6 +201,18 @@
         const charCount = text.length;
         const wordCount = text.split(/\s+/).length;
         const category = classifyText(wordCount);
+
+        if (category === "Too Short") {
+          showNotification("Text is too short. Add more detail.", "warning");
+        } else if (category === "Short") {
+          showNotification("Looks short. Consider expanding.", "info");
+        } else if (category === "Medium") {
+          showNotification("Good length.", "info");
+        } else if (category === "Long") {
+          showNotification("Long text. You may want to summarize.", "info");
+        } else if (category === "Very Long") {
+          showNotification("Very long text. Consider splitting it.", "error");
+        }
 
         const { error } = await db.from("analyses").insert([{
           text,
