@@ -75,11 +75,35 @@
 
       li {
         margin: 6px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .delete-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: 6px;
+        background: #e03131;
+        color: white;
       }
     </style>
   </head>
   <body>
     <div class="container">
+      <div id="authSection" style="margin-bottom: 20px;">
+        <input
+          type="email"
+          id="emailInput"
+          placeholder="Enter your email"
+          style="padding: 8px; width: 60%;"
+        />
+        <button id="loginBtn">Login</button>
+        <button id="logoutBtn" style="display:none;">Logout</button>
+
+        <p id="userStatus" style="font-size: 14px; color: #555;"></p>
+      </div>
       <div id="notificationBanner" class="notification-banner notification-info" style="display:none;">
         <span>Your message goes here.</span>
       </div>
@@ -129,10 +153,29 @@
         supabaseUrl,
         supabaseKey
       );
-
-      console.log("Supabase connected", db);
     </script>
     <script>
+      db.auth.onAuthStateChange((event, session) => {
+        console.log("Auth event:", event, session);
+
+        if (event === "SIGNED_IN") {
+          history.replaceState({}, document.title, window.location.pathname);
+          updateAuthUI();
+        }
+
+        if (event === "SIGNED_OUT") {
+          updateAuthUI();
+        }
+      });
+
+      (async () => {
+        const { data } = await db.auth.getSession();
+        console.log("Initial session:", data.session);
+        updateAuthUI();
+      })();
+    </script>
+    <script>
+      console.log("Supabase connected", db);
       const input = document.getElementById("textInput");
       const button = document.getElementById("analyzeBtn");
       const result = document.getElementById("result");
@@ -143,7 +186,29 @@
       const homeView = document.getElementById("homeView");
       const analyzeView = document.getElementById("analyzeView");
       const historyView = document.getElementById("historyView");
+      const loginBtn = document.getElementById("loginBtn");
+      const logoutBtn = document.getElementById("logoutBtn");
+      const emailInput = document.getElementById("emailInput");
+      const userStatus = document.getElementById("userStatus");
       let historyIntervalId = null;
+
+      async function updateAuthUI() {
+        const {
+          data: { user }
+        } = await db.auth.getUser();
+
+        if (user) {
+          userStatus.textContent = `Logged in as ${user.email}`;
+          loginBtn.style.display = "none";
+          logoutBtn.style.display = "inline-block";
+          emailInput.style.display = "none";
+        } else {
+          userStatus.textContent = "Not logged in";
+          loginBtn.style.display = "inline-block";
+          logoutBtn.style.display = "none";
+          emailInput.style.display = "inline-block";
+        }
+      }
 
       function classifyText(wordCount) {
         if (wordCount < 10) {
@@ -190,7 +255,38 @@
         }, duration);
       }
 
+      loginBtn.addEventListener("click", async () => {
+        const email = emailInput.value.trim();
+
+        if (!email) {
+          showNotification("Please enter an email", "warning");
+          return;
+        }
+
+        const { error } = await db.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: window.location.origin
+          }
+        });
+
+        if (error) {
+          console.error("OTP error:", error);
+          showNotification(`Login failed: ${error.message}`, "error");
+          return;
+        }
+
+        showNotification("Check your email for login link", "info");
+      });
+
+      logoutBtn.addEventListener("click", async () => {
+        await db.auth.signOut();
+        showNotification("Logged out", "info");
+        updateAuthUI();
+      });
+
       button.addEventListener("click", async () => {
+        console.log("Analyze clicked");
         const text = input.value.trim();
 
         if (text === "") {
@@ -210,11 +306,19 @@
           showNotification("Good length.", "info");
         } else if (category === "Long") {
           showNotification("Long text. You may want to summarize.", "info");
-        } else if (category === "Very Long") {
-          showNotification("Very long text. Consider splitting it.", "error");
+        }
+
+        const {
+          data: { user },
+        } = await db.auth.getUser();
+
+        if (!user) {
+          showNotification("Please login to save your analysis", "warning");
+          return;
         }
 
         const { error } = await db.from("analyses").insert([{
+          user_id: user.id,
           text,
           word_count: wordCount,
           char_count: charCount,
@@ -287,9 +391,19 @@
         const historyList = document.getElementById("historyList");
         historyList.innerHTML = "<li>Loading...</li>";
 
+        const {
+          data: { user },
+        } = await db.auth.getUser();
+
+        if (!user) {
+          historyList.innerHTML = "<li>Please login to see history</li>";
+          return;
+        }
+
         const { data, error } = await db
           .from("analyses")
           .select("*")
+          .eq("user_id", user.id)
           .order("created_at", { ascending: false })
           .limit(10);
 
@@ -308,8 +422,32 @@
 
         data.forEach(row => {
           const li = document.createElement("li");
-          li.textContent =
+          const textSpan = document.createElement("span");
+          textSpan.textContent =
             `${row.text.slice(0, 40)}… | ${row.word_count} words | ${row.category}`;
+
+          const deleteButton = document.createElement("button");
+          deleteButton.className = "delete-btn";
+          deleteButton.textContent = "Delete";
+          deleteButton.addEventListener("click", async () => {
+            const { error: deleteError } = await db
+              .from("analyses")
+              .delete()
+              .eq("id", row.id)
+              .eq("user_id", user.id);
+
+            if (deleteError) {
+              showNotification("Delete failed", "error");
+              console.error("Supabase delete failed", deleteError);
+              return;
+            }
+
+            showNotification("Deleted analysis", "info");
+            loadHistory();
+          });
+
+          li.appendChild(textSpan);
+          li.appendChild(deleteButton);
           historyList.appendChild(li);
         });
       }
