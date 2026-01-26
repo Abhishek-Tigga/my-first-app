@@ -100,6 +100,26 @@
         background: #e03131;
         color: white;
       }
+
+      .history-header {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      #refreshHistoryBtn {
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: 999px;
+        border: 1px solid #000;
+        background: transparent;
+        color: #000;
+        cursor: pointer;
+      }
+
+      #refreshHistoryBtn:hover {
+        background: #f0f0f0;
+      }
     </style>
   </head>
   <body>
@@ -141,7 +161,10 @@
       </section>
 
       <section id="historyView" style="display:none;">
-        <h2>History</h2>
+        <div class="history-header">
+          <h2>History</h2>
+          <button id="refreshHistoryBtn">Refresh</button>
+        </div>
         <ul id="historyList"></ul>
       </section>
 
@@ -184,6 +207,7 @@
       const homeView = document.getElementById("homeView");
       const analyzeView = document.getElementById("analyzeView");
       const historyView = document.getElementById("historyView");
+      const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
       const loginBtn = document.getElementById("loginBtn");
       const logoutBtn = document.getElementById("logoutBtn");
       const emailInput = document.getElementById("emailInput");
@@ -326,7 +350,26 @@
         updateAuthUI();
       });
 
+      refreshHistoryBtn.addEventListener("click", async () => {
+        const originalLabel = refreshHistoryBtn.textContent;
+        refreshHistoryBtn.disabled = true;
+        refreshHistoryBtn.textContent = "Refreshing...";
+
+        try {
+          await loadHistory();
+        } finally {
+          refreshHistoryBtn.disabled = false;
+          refreshHistoryBtn.textContent = originalLabel;
+        }
+      });
+
       button.addEventListener("click", async () => {
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Analyzing...";
+        result.textContent = "";
+
+        try {
         console.log("Analyze clicked");
         const text = input.value.trim();
 
@@ -335,6 +378,7 @@
           return;
         }
 
+        result.textContent = "Working...";
         const charCount = text.length;
         const wordCount = text.split(/\s+/).length;
         const category = classifyText(wordCount);
@@ -372,9 +416,17 @@
 
         result.textContent =
           `Characters: ${charCount} | Words: ${wordCount} | Category: ${category}`;
+        } finally {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
       });
 
       loadBtn.addEventListener("click", async () => {
+        const originalLabel = loadBtn.textContent;
+        loadBtn.disabled = true;
+        loadBtn.textContent = "Loading...";
+
         errorText.textContent = "";
         ratesList.innerHTML = "";
         loadingText.style.display = "block";
@@ -401,6 +453,8 @@
           errorText.textContent = "Something went wrong. Please try again.";
         } finally {
           loadingText.style.display = "none";
+          loadBtn.disabled = false;
+          loadBtn.textContent = originalLabel;
         }
       });
 
@@ -437,7 +491,7 @@
         } = await db.auth.getUser();
 
         if (!user) {
-          historyList.innerHTML = "<li>Please login to see history</li>";
+          historyList.innerHTML = "<li>Login to see your saved analyses.</li>";
           return;
         }
 
@@ -455,7 +509,7 @@
         }
 
         if (data.length === 0) {
-          historyList.innerHTML = "<li>No history yet</li>";
+          historyList.innerHTML = "<li>No analyses yet — go to Analyze and save your first one.</li>";
           return;
         }
 
