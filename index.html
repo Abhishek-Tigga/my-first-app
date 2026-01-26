@@ -81,6 +81,18 @@
         gap: 12px;
       }
 
+      /* Ensure long history text doesn't push the Delete button off-screen */
+      #historyList li span {
+        flex: 1;
+        min-width: 0;
+        text-align: left;
+        overflow-wrap: anywhere;
+      }
+
+      #historyList li button {
+        flex: 0 0 auto;
+      }
+
       .delete-btn {
         padding: 6px 10px;
         font-size: 12px;
@@ -145,35 +157,21 @@
       <ul id="rates"></ul>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./config.js"></script>
     <script>
-      const supabaseUrl = "https://qmgghzjcbgybjltqqtrj.supabase.co";
-      const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtZ2doempjYmd5YmpsdHFxdHJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MzUwNDYsImV4cCI6MjA4NDQxMTA0Nn0.kPfmwW8Jpu5DY0rDyUYdSyHpIlVAwsij4-UG6dijukM";
+      // Values are provided by config.js (for a static HTML app)
+      const supabaseUrl = window.SUPABASE_URL;
+      const supabaseKey = window.SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        console.error("Missing Supabase config. Set window.SUPABASE_URL and window.SUPABASE_ANON_KEY in config.js");
+      }
 
       const db = window.supabase.createClient(
         supabaseUrl,
         supabaseKey
       );
-    </script>
-    <script>
-      db.auth.onAuthStateChange((event, session) => {
-        console.log("Auth event:", event, session);
-
-        if (event === "SIGNED_IN") {
-          history.replaceState({}, document.title, window.location.pathname);
-          updateAuthUI();
-        }
-
-        if (event === "SIGNED_OUT") {
-          updateAuthUI();
-        }
-      });
-
-      (async () => {
-        const { data } = await db.auth.getSession();
-        console.log("Initial session:", data.session);
-        updateAuthUI();
-      })();
-    </script>
+</script>
     <script>
       console.log("Supabase connected", db);
       const input = document.getElementById("textInput");
@@ -209,6 +207,35 @@
           emailInput.style.display = "inline-block";
         }
       }
+
+      // --- Auth bootstrap (must run after updateAuthUI is defined) ---
+      let authSessionResolved = false;
+      db.auth.onAuthStateChange((event, session) => {
+        console.log("Auth event:", event, session);
+
+        if (event === "SIGNED_IN") {
+          if (!authSessionResolved) {
+            return;
+          }
+          // Remove tokens from the URL after magic-link redirect
+          history.replaceState({}, document.title, window.location.pathname);
+          updateAuthUI();
+        }
+
+        if (event === "SIGNED_OUT") {
+          if (!authSessionResolved) {
+            return;
+          }
+          updateAuthUI();
+        }
+      });
+
+      (async () => {
+        const { data } = await db.auth.getSession();
+        console.log("Initial session:", data.session);
+        authSessionResolved = true;
+        updateAuthUI();
+      })();
 
       function classifyText(wordCount) {
         if (wordCount < 10) {
@@ -255,6 +282,20 @@
         }, duration);
       }
 
+      function reportError(context, error) {
+        console.error(context, error);
+        showNotification(context, "error");
+      }
+
+      async function withRetry(task, delayMs = 300) {
+        try {
+          return await task();
+        } catch (error) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          return await task();
+        }
+      }
+
       loginBtn.addEventListener("click", async () => {
         const email = emailInput.value.trim();
 
@@ -271,7 +312,7 @@
         });
 
         if (error) {
-          console.error("OTP error:", error);
+          reportError("Login failed", error);
           showNotification(`Login failed: ${error.message}`, "error");
           return;
         }
@@ -326,7 +367,7 @@
         }]);
 
         if (error) {
-          console.error("Supabase insert failed", error);
+          reportError("Supabase insert failed", error);
         }
 
         result.textContent =
@@ -339,9 +380,9 @@
         loadingText.style.display = "block";
 
         try {
-          const response = await fetch(
+          const response = await withRetry(() => fetch(
             "https://open.er-api.com/v6/latest/INR"
-          );
+          ));
 
           if (!response.ok) {
             throw new Error("Failed to fetch rates");
@@ -409,7 +450,7 @@
 
         if (error) {
           historyList.innerHTML = "<li>Error loading history</li>";
-          console.error(error);
+          reportError("Error loading history", error);
           return;
         }
 
@@ -438,7 +479,7 @@
 
             if (deleteError) {
               showNotification("Delete failed", "error");
-              console.error("Supabase delete failed", deleteError);
+              reportError("Supabase delete failed", deleteError);
               return;
             }
 
