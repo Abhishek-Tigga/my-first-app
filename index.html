@@ -311,6 +311,27 @@
         showNotification(context, "error");
       }
 
+      async function logEvent(type, meta = {}) {
+        try {
+          const {
+            data: { user },
+          } = await db.auth.getUser();
+
+          const { error } = await db.from("events").insert([
+            {
+              user_id: user ? user.id : null,
+              event_name: type,
+              metadata: meta,
+            },
+          ]);
+
+          if (error) throw error;
+        } catch (e) {
+          // Don't block the app if logging fails
+          console.warn("Event log failed:", e);
+        }
+      }
+
       async function withRetry(task, delayMs = 300) {
         try {
           return await task();
@@ -378,6 +399,7 @@
           return;
         }
 
+        await logEvent("analyze_clicked", { text_length: text.length });
         result.textContent = "Working...";
         const charCount = text.length;
         const wordCount = text.split(/\s+/).length;
@@ -412,6 +434,11 @@
 
         if (error) {
           reportError("Supabase insert failed", error);
+        } else {
+          await logEvent("analysis_saved", {
+            word_count: wordCount,
+            category: category
+          });
         }
 
         result.textContent =
@@ -449,6 +476,7 @@
             li.textContent = `1 INR = ${rates[currency]} ${currency}`;
             ratesList.appendChild(li);
           }
+          await logEvent("rates_loaded", { currencies: ["USD", "EUR", "GBP"] });
         } catch (error) {
           errorText.textContent = "Something went wrong. Please try again.";
         } finally {
@@ -474,11 +502,12 @@
         stopHistoryAutoRefresh();
       };
 
-      document.getElementById("navHistory").onclick = () => {
+      document.getElementById("navHistory").onclick = async () => {
         homeView.style.display = "none";
         analyzeView.style.display = "none";
         historyView.style.display = "block";
 
+        await logEvent("history_viewed", { source: "nav" });
         startHistoryAutoRefresh();
       };
 
